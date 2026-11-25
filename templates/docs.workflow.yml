@@ -1,0 +1,57 @@
+name: docs
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 1 * * 1" # 每周一 01:00 UTC，生成复核队列
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate docs
+        run: node scripts/docs-tool.mjs check
+      - name: Drift check
+        env:
+          DOCS_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: node scripts/docs-tool.mjs drift --base "origin/${{ github.base_ref }}"
+
+  audit:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Audit review intervals
+        run: node scripts/docs-tool.mjs audit --write docs/_meta/audit.md
+      - name: Publish review queue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('docs/_meta/audit.md', 'utf8');
+            const title = 'Documentation review queue';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', per_page: 100,
+            });
+            const existing = issues.find((i) => i.title === title);
+            if (existing) {
+              await github.rest.issues.update({ ...context.repo, issue_number: existing.number, body });
+            } else {
+              await github.rest.issues.create({ ...context.repo, title, body });
+            }

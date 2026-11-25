@@ -1,0 +1,18 @@
+# 代码 → 文档 映射
+#
+# 作用：改动了 sources 命中的文件时，docs 必须一起改，否则 PR 的 drift 检查失败。
+# 跳过：给 PR 打 `docs-not-needed` 标签，并在 PR 描述里写明理由（会被审计）。
+#
+# 只支持这个严格子集：列表项 + docs/sources 两个键 + 行内数组。
+# sources 用仓库相对 glob：`src/billing/**`、`deploy/*.yml`、`**/schema.prisma`。
+
+# 示例（按需取消注释并替换成真实路径）：
+#
+# - docs: ["docs/architecture/modules/billing-invoice.md"]
+#   sources: ["src/billing/invoice/**"]
+#
+# - docs: ["docs/runbooks/deploy.md", "docs/runbooks/rollback.md"]
+#   sources: ["deploy/**", "Dockerfile", ".github/workflows/release.yml"]
+#
+# - docs: ["docs/architecture/overview.md"]
+#   sources: ["src/app/main.ts"]
